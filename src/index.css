@@ -1,0 +1,10 @@
+/* 确保这三个指令在文件的最顶端 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 可选: 添加 body 基础样式 */
+body {
+  font-family: 'Inter', 'sans-serif';
+  @apply antialiased;
+}
