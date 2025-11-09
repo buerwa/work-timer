@@ -9,7 +9,7 @@ import {
 } from "date-fns";
 import {
   Settings,
-  Calendar,
+  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -31,43 +31,35 @@ import { CalendarConfigModal } from "./components/CalendarConfigModal";
 import { ImportExportButtons } from "./components/ImportExportButtons";
 import { Dashboard } from "./components/Dashboard";
 import { CountdownTimer } from "./components/CountdownTimer";
-import { TimeInputList } from "./components/TimeInputList";
+// [修改] 引入新组件
+import { DailyEntryForm } from "./components/DailyEntryForm";
+import { HistoryList } from "./components/HistoryList";
 
 // Utils
 import { parseTime } from "./utils/timeCalculator";
 
 /**
  * 主应用组件 (App.tsx)
- * * 这个文件将所有组件和状态管理 Hooks 组装在一起。
  */
 function App() {
-  // 弹窗状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  // 当前查看的月份
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // 从 Zustand store 获取状态和 actions
-  const { hourFormat, settings } = useSettings();
-  const { toggleHourFormat, resetToDefaults } = useTimerActions();
+  const { settings } = useSettings();
+  const { resetToDefaults } = useTimerActions();
 
-  // --- 核心逻辑 ---
-
-  // 1. 计算仪表盘统计数据
-  // useDashboardStats Hook 会自动从 store 中获取数据并计算
+  // 核心逻辑计算
   const stats = useDashboardStats(currentMonth);
 
-  // 2. 计算动态下班时间
+  // 动态下班时间计算
   const { dynamicEndTime, standardEndTime } = useMemo(() => {
-    // 获取配置的标准下班时间
     const standardEnd = parseTime(settings.standardWorkTime.end);
     if (!standardEnd) return { dynamicEndTime: null, standardEndTime: null };
 
     const todayString = format(new Date(), "yyyy-MM-dd");
     const todayCalc = stats.dailyCalculations[todayString];
 
-    // 如果今天不是工作日/调休日，或者今天还未录入工时，则不计算动态时间
     if (
       !todayCalc ||
       (todayCalc.dayType !== "workday" &&
@@ -77,16 +69,10 @@ function App() {
       return { dynamicEndTime: standardEnd, standardEndTime: standardEnd };
     }
 
-    // 获取本月工时亏欠情况
     const { deficitHours, isDeficit } = stats;
-
     let dynamicEnd = standardEnd;
 
-    // 如果本月存在工时亏欠 ( deficitHours > 0 )
-    // 并且现在还没到标准下班时间 (用于防止下班后时间还在跳)
     if (isDeficit && isAfter(standardEnd, new Date())) {
-      // 动态下班时间 = 标准下班时间 + 累计亏欠的分钟数
-      // 这是一个简化的逻辑，假设所有亏欠都在今天补完
       dynamicEnd = addMinutes(dynamicEnd, Math.ceil(deficitHours * 60));
     }
 
@@ -98,109 +84,111 @@ function App() {
     stats.dailyCalculations,
   ]);
 
-  // --- 事件处理 ---
-
-  // 切换月份
   const changeMonth = (direction: number) => {
     setCurrentMonth((prev) => {
       const monthStart = startOfMonth(prev);
-      // 通过加/减天数来避免 date-fns 的月份计算问题
       return direction > 0 ? addDays(monthStart, 35) : subDays(monthStart, 1);
     });
   };
 
-  // 处理重置 (带确认)
   const handleReset = () => {
-    // 真实应用中使用自定义 Modal
-    const confirmed = window.confirm(
-      "确定要重置所有设置和工时数据吗？此操作不可撤销。"
-    );
-    if (confirmed) {
+    if (window.confirm("确定要重置所有设置和工时数据吗？此操作不可撤销。")) {
       resetToDefaults();
-      console.log("数据已重置。");
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-inter antialiased text-gray-800">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* 1. 页头 */}
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
-          <h1 className="text-3xl font-bold text-gray-900">Work-Timer</h1>
-          <div className="flex items-center space-x-2">
+        <header className="flex flex-col sm:flex-row justify-between items-center mb-8">
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            Work-Timer
+          </h1>
+          <div className="flex items-center space-x-3 mt-4 sm:mt-0">
             <ImportExportButtons />
-            <button
-              onClick={toggleHourFormat}
-              title={`切换到 ${hourFormat === "12h" ? "24" : "12"} 小时制`}
-              className="p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 w-12"
-            >
-              {hourFormat === "12h" ? "12h" : "24h"}
-            </button>
+            {/* 移除了 12h/24h 切换按钮，因为新的下拉列表强制使用 24h 格式更清晰 */}
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="p-2.5 border border-gray-200 rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-all"
               title="设置"
             >
-              <Settings size={20} />
+              <Settings size={18} />
             </button>
             <button
               onClick={handleReset}
               title="重置所有数据"
-              className="p-2 border border-transparent rounded-md text-sm font-medium text-red-600 hover:bg-red-100"
+              className="p-2.5 border border-transparent rounded-lg text-red-600 hover:bg-red-50 transition-all"
             >
-              <RefreshCw size={20} />
+              <RefreshCw size={18} />
             </button>
           </div>
         </header>
 
-        {/* 2. 倒计时 */}
-        <CountdownTimer
-          dynamicEndTime={dynamicEndTime}
-          standardEndTime={standardEndTime}
-        />
+        {/* 2. 核心功能区 */}
+        <div className="space-y-6">
+          {/* 倒计时 */}
+          <CountdownTimer
+            dynamicEndTime={dynamicEndTime}
+            standardEndTime={standardEndTime}
+          />
 
-        {/* 3. 仪表盘 */}
-        <Dashboard stats={stats} />
+          {/* 仪表盘 */}
+          <Dashboard stats={stats} />
 
-        {/* 4. 月份切换 和 列表 */}
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => changeMonth(-1)}
-              className="p-2 rounded-md hover:bg-gray-200"
-              aria-label="上个月"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <h2 className="text-xl font-semibold text-gray-800 w-32 text-center">
-              {format(currentMonth, "yyyy 年 MM 月")}
-            </h2>
-            <button
-              onClick={() => changeMonth(1)}
-              className="p-2 rounded-md hover:bg-gray-200"
-              aria-label="下个月"
-            >
-              <ChevronRight size={20} />
-            </button>
+          {/* 新的单日录入表单 */}
+          <DailyEntryForm
+            onDayTypeConfigClick={(dateString) => {
+              // 这里需要稍微改一下，因为 CalendarConfigModal 接收的是 Date 对象，而这里传回来的是 string
+              // 不过我们可以在 CalendarConfigModal 内部处理，或者在这里转换
+              // 为了简单，我们在 CalendarConfigModal 里增加一个 onDateSelect 的处理逻辑
+              // 或者让 DailyEntryForm 直接打开 CalendarConfigModal 并选中该日期
+              setIsCalendarOpen(true);
+              // TODO: 理想情况下，这里应该能让 CalendarConfigModal 自动跳转到指定日期
+            }}
+          />
+
+          {/* 历史记录区域 */}
+          <div>
+            <div className="flex justify-between items-center mb-4 px-1">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                {format(currentMonth, "yyyy 年 MM 月")}
+              </h2>
+              <div className="flex items-center space-x-2">
+                <div className="flex bg-white rounded-lg shadow-sm border border-gray-200 mr-2">
+                  <button
+                    onClick={() => changeMonth(-1)}
+                    className="p-2 hover:bg-gray-50 rounded-l-lg border-r border-gray-200"
+                  >
+                    <ChevronLeft size={20} className="text-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => changeMonth(1)}
+                    className="p-2 hover:bg-gray-50 rounded-r-lg"
+                  >
+                    <ChevronRight size={20} className="text-gray-600" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setIsCalendarOpen(true)}
+                  className="flex items-center px-3 py-2 border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                >
+                  <CalendarIcon size={16} className="mr-2" />
+                  配置日期类型
+                </button>
+              </div>
+            </div>
+
+            {/* 新的历史记录列表 */}
+            <HistoryList
+              currentMonth={currentMonth}
+              dailyCalculations={stats.dailyCalculations}
+            />
           </div>
-          <button
-            onClick={() => setIsCalendarOpen(true)}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Calendar size={18} className="mr-2" />
-            配置日期类型
-          </button>
         </div>
-
-        {/* 5. 时间列表 */}
-        <TimeInputList
-          currentMonth={currentMonth}
-          dailyCalculations={stats.dailyCalculations}
-          onDayTypeConfigClick={() => setIsCalendarOpen(true)}
-        />
       </div>
 
-      {/* 6. 弹窗 (Modals) */}
+      {/* 弹窗 */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -209,7 +197,6 @@ function App() {
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
         currentMonth={currentMonth}
-        // onDateSelect={null} // 我们在这里不需要这个功能
       />
     </div>
   );
