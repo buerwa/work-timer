@@ -4,7 +4,7 @@ import type { SettingsConfig, DayType } from "../types";
 
 /** 默认设置 */
 export const DEFAULT_SETTINGS: SettingsConfig = {
-  standardWorkTime: { start: "09:00", end: "17:30" },
+  standardWorkTime: { start: "08:50", end: "20:30" },
   workdayRestTimes: [
     { start: "12:00", end: "13:30" }, // 午休
     { start: "17:30", end: "18:00" }, // 晚休
